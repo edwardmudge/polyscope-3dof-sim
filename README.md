@@ -4,14 +4,15 @@ A Python-based 3D visualisation tool for a 3-degree-of-freedom manipulator. The 
 
 ## Dependencies
 
-* Python 3.9
-* Polyscope
-* NumPy
+* Python 3.12
+* Polyscope 2.6.1
+* NumPy 2.5.0
 
 ## Usage
 
 ```bash
-git clone [https://github.com/edwardmudge/polyscope-3dof-sim.git](https://github.com/edwardmudge/polyscope-3dof-sim.git)
+git clone https://github.com/edwardmudge/polyscope-3dof-sim.git
 cd polyscope-3dof-sim
 pip install -r requirements.txt
 python main.py
+```
