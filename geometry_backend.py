@@ -84,6 +84,6 @@ class VisContent:
         
         
     def run_algorithm(self, param_a, param_b):
-        """Example algorithm interface"""
-        print(f"[Backend] Running Algorithm with params: {param_a}, {param_b}")
-        # Once the computation is complete, call ps.register_... to update the display
+        """Inverse kinematics algorithm interface"""
+        print(f"[Backend] Running inverse kinmatics algorithm with params: x = {param_a}, z = {param_b}")
+        

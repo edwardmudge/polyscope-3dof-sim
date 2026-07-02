@@ -17,6 +17,9 @@ class UI_Menu:
         self.theta1_deg = 0.0
         self.theta2_deg = 0.0
         self.theta3_deg = 0.0
+
+        # Target position for inverse kinematics
+        self.target_position = np.array([5.0, 0.0])
         
 
     def render(self):
@@ -33,7 +36,7 @@ class UI_Menu:
             psim.TreePop()
 
         # 3. Joint controls section
-        if psim.TreeNode("Joint angles"):
+        if psim.TreeNode("Joint Angles"):
             changed, new_angles = psim.SliderFloat3("Angles (in X, Y, Z)", (self.theta1_deg, self.theta2_deg, self.theta3_deg), -180, 180)
 
             if changed:
@@ -44,4 +47,14 @@ class UI_Menu:
                     np.radians(self.theta3_deg)
                 )
             
+            psim.TreePop()
+
+
+        # 4. Inverse kinematics section
+        if psim.TreeNode("Inverse Kinematics"):
+            changed, self.target_position = psim.InputFloat2("Target (X, Z)", self.target_position)
+
+            if psim.Button("Solve IK"):
+                self.content.run_algorithm(self.target_position[0], self.target_position[1])
+
             psim.TreePop()
