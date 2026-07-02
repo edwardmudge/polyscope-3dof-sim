@@ -28,8 +28,8 @@ class UI_Menu:
 
         # 2. Data loading section
         if psim.TreeNode("I/O Operations"):
-            if psim.Button("Load Test Data"):
-                self.content.load_dummy_data()
+            if psim.Button("Load Manipulator Data"):
+                self.content.load_data()
             psim.TreePop()
 
         # 3. Transformation controls section
