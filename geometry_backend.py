@@ -70,9 +70,27 @@ class VisContent:
     def create_arm(self):
         nodes = self.create_manipulator_geometry(self.theta1, self.theta2, self.theta3)
         self.ps_arm = ps.register_curve_network("Planar Arm", nodes, edges="line", radius = 0.02)
+
+    
+    def valid_configuration(self, theta1, theta2, theta3):
+        """Reject configurations where any joint dips below the floor (z < 0)."""
+        joint1, joint2, end_effector = self.forward_kinematics(theta1, theta2, theta3, self.L1, self.L2, self.L3)
+
+        # Column 1 is the height part (sine function in forward kinematics)
+        heights = [joint1[1], joint2[1], end_effector[1]]
+        
+        # If any height is below z=0 then it returns false, else it returns true
+        for h in heights:
+            if h < 0:
+                return False
+            
+        return True
+    
     
     
     def update_arm(self, theta1, theta2, theta3):
+        if not self.valid_configuration(theta1, theta2, theta3):
+            return
         self.theta1, self.theta2, self.theta3 = theta1, theta2, theta3
         nodes = self.create_manipulator_geometry(theta1, theta2, theta3)
         self.ps_arm.update_node_positions(nodes)

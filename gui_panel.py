@@ -40,12 +40,13 @@ class UI_Menu:
             changed, new_angles = psim.SliderFloat3("Angles (in X, Y, Z)", (self.theta1_deg, self.theta2_deg, self.theta3_deg), -180, 180)
 
             if changed:
-                self.theta1_deg, self.theta2_deg, self.theta3_deg = new_angles
-                self.content.update_arm(
-                    np.radians(self.theta1_deg),
-                    np.radians(self.theta2_deg),
-                    np.radians(self.theta3_deg)
-                )
+                theta1_deg, theta2_deg, theta3_deg = new_angles
+                theta1_rad, theta2_rad, theta3_rad =  np.radians(theta1_deg), np.radians(theta2_deg), np.radians(theta3_deg)
+
+                # Checks if the configuration is valid
+                if self.content.valid_configuration(theta1_rad, theta2_rad, theta3_rad):
+                    self.theta1_deg, self.theta2_deg, self.theta3_deg = theta1_deg, theta2_deg, theta3_deg
+                    self.content.update_arm(theta1_rad, theta2_rad, theta3_rad)
             
             psim.TreePop()
 
