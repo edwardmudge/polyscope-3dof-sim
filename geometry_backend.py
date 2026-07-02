@@ -53,13 +53,18 @@ class VisContent:
         base = np.array([0.0, 0.0])
         joint1, joint2, end_effector = self.forward_kinematics(theta1, theta2, theta3, self.L1, self.L2, self.L3)
         
-        # Stack points into an Nx3 vector where z=0 for every node (planar)
+        # Stack points into an Nx3 vector where y=0 for every node (planar)
         # Already arrays so no extra brackets needed
         points_2d = np.array([base, joint1, joint2, end_effector])
 
+        # Split points so that arm sweeps in the X-Z plane
+        x_column = points_2d[:, [0]]
+
         # Creates a 4x1 array of zeros (shape function obtains the number of rows)
-        z_column = np.zeros((points_2d.shape[0], 1))
-        return np.hstack([points_2d, z_column])
+        y_column = np.zeros((points_2d.shape[0], 1))
+
+        z_column = points_2d[:, [1]]
+        return np.hstack([x_column, y_column, z_column])
     
 
     def create_arm(self):

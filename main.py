@@ -6,7 +6,7 @@ def main():
     # 1. Initialise the Polyscope system
     ps.init()
     ps.set_program_name("Geometry Processing Lab")
-    ps.set_ground_plane_mode("none") # Clean/minimal mode
+    ps.set_ground_plane_mode("tile") # Clean/minimal mode
     ps.set_up_dir("z_up")
 
     # 2. Instantiate the backend (Model)

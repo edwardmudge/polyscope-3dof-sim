@@ -14,16 +14,16 @@ class UI_Menu:
         self.content = content_instance
         
         # Internal UI state (View State)
-        self.show_settings = True
-        self.slider_val = 0.0
-        self.trans_vec = np.array([0.0, 0.0, 0.0])
-        self.rot_vec = np.array([0.0, 0.0, 0.0])
+        self.theta1_deg = 0.0
+        self.theta2_deg = 0.0
+        self.theta3_deg = 0.0
+        
 
     def render(self):
         """This function must be called by Polyscope every frame"""
         
         # 1. Panel title
-        psim.TextUnformatted("GeoProc Template Control")
+        psim.TextUnformatted("Planar 3R Arm Control")
         psim.Separator()
 
         # 2. Data loading section
@@ -32,25 +32,16 @@ class UI_Menu:
                 self.content.load_data()
             psim.TreePop()
 
-        # 3. Transformation controls section
-        if psim.TreeNode("Transformation"):
-            changed_t, self.trans_vec = psim.InputFloat3("Translate", self.trans_vec)
-            changed_r, self.rot_vec = psim.SliderFloat3("Rotate", self.rot_vec, -180, 180)
-            
-            # If the user interacts with the UI, notify the backend immediately
-            if changed_t or changed_r:
-                self.content.update_transformation(self.rot_vec, self.trans_vec)
-            
-            psim.TreePop()
+        # 3. Joint controls section
+        if psim.TreeNode("Joint angles"):
+            changed, new_angles = psim.SliderFloat3("Angles (in X, Y, Z)", (self.theta1_deg, self.theta2_deg, self.theta3_deg), -180, 180)
 
-        # 4. Algorithm parameters section
-        if psim.TreeNode("Algorithm Settings"):
-            _, self.show_settings = psim.Checkbox("Enable Advanced", self.show_settings)
-            
-            if self.show_settings:
-                _, self.slider_val = psim.SliderFloat("Smoothness", self.slider_val, 0.0, 1.0)
-                
-                if psim.Button("Run Processing"):
-                    self.content.run_algorithm(self.slider_val, "method_A")
+            if changed:
+                self.theta1_deg, self.theta2_deg, self.theta3_deg = new_angles
+                self.content.update_arm(
+                    np.radians(self.theta1_deg),
+                    np.radians(self.theta2_deg),
+                    np.radians(self.theta3_deg)
+                )
             
             psim.TreePop()
