@@ -7,6 +7,7 @@ A Python-based 3D visualisation tool for a 3-degree-of-freedom manipulator. The 
 * Python 3.12
 * Polyscope 2.6.1
 * NumPy 2.5.0
+* Trimesh 4.12.2
 
 ## Usage
 

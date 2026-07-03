@@ -37,7 +37,7 @@ class UI_Menu:
 
         # 3. Joint controls section
         if psim.TreeNode("Joint Angles"):
-            changed, new_angles = psim.SliderFloat3("Angles (in X, Y, Z)", (self.theta1_deg, self.theta2_deg, self.theta3_deg), -180, 180)
+            changed, new_angles = psim.SliderFloat3("Angles (deg)", (self.theta1_deg, self.theta2_deg, self.theta3_deg), -180, 180)
 
             if changed:
                 theta1_deg, theta2_deg, theta3_deg = new_angles

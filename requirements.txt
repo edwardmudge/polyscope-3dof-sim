@@ -2,5 +2,6 @@ numpy==2.5.0
 packaging==26.0
 polyscope==2.6.1
 setuptools==82.0.1
+trimesh==4.12.2
 typing_extensions==4.15.0
 wheel==0.47.0

@@ -1,5 +1,8 @@
 import polyscope as ps
 import numpy as np
+import trimesh
+
+MANIPULATOR_SCALE = 3.0  # Overall size multiplier so a link is close to one Polyscope floor tile
 
 class VisContent:
     """
@@ -11,15 +14,15 @@ class VisContent:
     """
     def __init__(self):
         # Sets manipulator initial parameters
-        self.L1, self.L2, self.L3 = 4.0, 3.0, 2.0
+        self.L1, self.L2, self.L3 = 3.65 * MANIPULATOR_SCALE, 2.65 * MANIPULATOR_SCALE, 1.8268 * MANIPULATOR_SCALE
         self.theta1, self.theta2, self.theta3 = 0.0, 0.0, 0.0
-        self.ps_arm = None
-        
+        self.loaded = False
+
         # Initialise the scene
         self.create_coordinate_frame()
-        self.create_arm()
 
-    def create_coordinate_frame(self, scale=1.0):
+
+    def create_coordinate_frame(self, scale=MANIPULATOR_SCALE):
         """Initialise the base coordinate frame"""
         nodes = np.array([[0,0,0], [scale,0,0], [0,scale,0], [0,0,scale]])
         edges = np.array([[0,1], [0,2], [0,3]])
@@ -49,55 +52,61 @@ class VisContent:
         return joint1, joint2, end_effector
 
 
-    def create_manipulator_geometry(self, theta1, theta2, theta3):
-        base = np.array([0.0, 0.0])
-        joint1, joint2, end_effector = self.forward_kinematics(theta1, theta2, theta3, self.L1, self.L2, self.L3)
-        
-        # Stack points into an Nx3 vector where y=0 for every node (planar)
-        # Already arrays so no extra brackets needed
-        points_2d = np.array([base, joint1, joint2, end_effector])
-
-        # Split points so that arm sweeps in the X-Z plane
-        x_column = points_2d[:, [0]]
-
-        # Creates a 4x1 array of zeros (shape function obtains the number of rows)
-        y_column = np.zeros((points_2d.shape[0], 1))
-
-        z_column = points_2d[:, [1]]
-        return np.hstack([x_column, y_column, z_column])
-    
-
-    def create_arm(self):
-        nodes = self.create_manipulator_geometry(self.theta1, self.theta2, self.theta3)
-        self.ps_arm = ps.register_curve_network("Planar Arm", nodes, edges="line", radius = 0.02)
-
-    
     def valid_configuration(self, theta1, theta2, theta3):
-        """Reject configurations where any joint dips below the floor (z < 0)."""
+        """Reject configurations where any joint dips below the floor."""
         joint1, joint2, end_effector = self.forward_kinematics(theta1, theta2, theta3, self.L1, self.L2, self.L3)
 
         # Column 1 is the height part (sine function in forward kinematics)
         heights = [joint1[1], joint2[1], end_effector[1]]
-        
-        # If any height is below z=0 then it returns false, else it returns true
+
+        # Joint-1 height 0 corresponds to world Z = BASE_HEIGHT_M (post BASE_LIFT),
+        # so the true floor (world Z = 0) sits at height -BASE_HEIGHT_M.
         for h in heights:
-            if h < 0:
+            if h < -BASE_HEIGHT_M:
                 return False
-            
+
         return True
     
     
-    
     def update_arm(self, theta1, theta2, theta3):
+        if not self.loaded:
+            return
+
         if not self.valid_configuration(theta1, theta2, theta3):
             return
+
         self.theta1, self.theta2, self.theta3 = theta1, theta2, theta3
-        nodes = self.create_manipulator_geometry(theta1, theta2, theta3)
-        self.ps_arm.update_node_positions(nodes)
+
+        T1 = homogenous_transform_z(theta1, self.L1)        
+        T2 = T1 @ homogenous_transform_z(theta2, self.L2)    
+        T3 = T2 @ homogenous_transform_z(theta3, self.L3)  
+
+        self.ps_link1.set_transform(BASE_LIFT @ REMAP @ rotation_z(theta1))
+        self.ps_link2.set_transform(BASE_LIFT @ REMAP @ T1 @ rotation_z(theta2))
+        self.ps_link3.set_transform(BASE_LIFT @ REMAP @ T2 @ rotation_z(theta3))
+
+
+    def load_mesh(self, filepath, name, pivot_offset_mm=(0.0, 0.0, 0.0)):
+        mesh = trimesh.load(filepath)
+        # Moves the physical joint pivot (measured in the new coordinate system's frame) to the local origin.
+        mesh.apply_translation(-np.array(pivot_offset_mm, dtype=float))
+        mesh.apply_scale(0.001 * MANIPULATOR_SCALE)  # SolidWorks STL export is in mm - simulation units are metres
+        return ps.register_surface_mesh(name, mesh.vertices, mesh.faces)
 
 
     def load_data(self):
-        # This can later be replaced with trimesh.load()
+        self.ps_base = self.load_mesh("geometry/Base.STL", "Base", pivot_offset_mm=(378.75, 277.70, 378.75))
+        self.ps_link1 = self.load_mesh("geometry/Link 1.STL", "Link 1", pivot_offset_mm=(176.75, 176.75, 202.00))
+        self.ps_link2 = self.load_mesh("geometry/Link 2.STL", "Link 2", pivot_offset_mm=(176.75, 176.75, 126.25))
+        self.ps_link3 = self.load_mesh("geometry/Link 3.STL", "Link 3", pivot_offset_mm=(176.75, 176.75, 303.00))
+
+        # Base is fixed and never transformed again
+        self.ps_base.set_transform(BASE_LIFT @ REMAP)
+
+        # Set the default angles of all links
+        self.loaded = True
+        self.update_arm(0.0, 0.0, 0.0)
+
         print("[Backend] Loading geometry...")
         
         
@@ -105,3 +114,52 @@ class VisContent:
         """Inverse kinematics algorithm interface"""
         print(f"[Backend] Running inverse kinmatics algorithm with params: x = {param_a}, z = {param_b}")
         
+
+
+
+def rotation_z(theta):
+    """Rotation-only transform about local Z (no translation)."""
+    c, s = np.cos(theta), np.sin(theta)
+    return np.array([
+        [c, -s, 0, 0],
+        [s,  c, 0, 0],
+        [0,  0, 1, 0],
+        [0,  0, 0, 1],
+    ])
+
+
+def homogenous_transform_z(theta, L):
+    """
+    Homogenous transform for a revolute joint, derived from Craig.
+    Rotate theta about local Z, then translate L along the new local X.
+    """
+    c, s = np.cos(theta), np.sin(theta)
+    return np.array([
+        [c, -s, 0, L * c],
+        [s,  c, 0, L * s],
+        [0,  0, 1, 0    ],
+        [0,  0, 0, 1    ],
+    ])
+
+
+
+# Base's pivot (Link-1 mount point) sits 275mm above its physical bottom face,
+# so lifting the whole assembly by this amount puts Base's true bottom on the
+# floor (world Z=0) instead of the pivot itself.
+
+BASE_HEIGHT_M = 0.275 * MANIPULATOR_SCALE
+BASE_LIFT = np.eye(4)
+BASE_LIFT[2, 3] = BASE_HEIGHT_M
+
+
+
+# Fixed correcton matrix: remaps the arm's own local (X, Y) plane onto the world (X, Z),
+# since the arm maths was setup to sweep the vertical plane rather than lying flat on the ground.
+
+REMAP = np.array([
+    [1, 0,  0, 0],
+    [0, 0, -1, 0],
+    [0, 1,  0, 0],
+    [0, 0,  0, 1],
+
+])
