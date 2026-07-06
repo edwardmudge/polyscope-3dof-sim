@@ -9,6 +9,7 @@ def main():
     ps.set_program_name("Geometry Processing Lab")
     ps.set_ground_plane_mode("tile") # Tile mode
     ps.set_up_dir("z_up")
+    ps.set_always_redraw(True)  # Redraws Polyscope scene constantly
 
 
     # Fix the scene extents and ground plane so they don't drift as the arm moves

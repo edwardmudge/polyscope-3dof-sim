@@ -56,7 +56,7 @@ class VisContent:
         """Reject configurations where any joint dips below the floor"""
         joint1, joint2, end_effector = self.forward_kinematics(theta1, theta2, theta3, self.L1, self.L2, self.L3)
 
-        # Column 1 is the height part (sine function in forward kinematics)
+        # Column 1 (or index 1) is the height part (sine function in forward kinematics)
         heights = [joint1[1], joint2[1], end_effector[1]]
 
         # Joint 1 height 0 corresponds to world Z = BASE_HEIGHT_M (post BASE_TRANSLATION),
@@ -91,7 +91,7 @@ class VisContent:
     def load_mesh(self, filepath, name, pivot_offset_mm=(0.0, 0.0, 0.0)):
         """Load one STL, shift its pivot to the local origin, and scale mm to metres"""
         mesh = trimesh.load(filepath)
-        # Moves the physical joint pivot (measured in the new coordinate system's frame) to the local origin.
+        # Shifts the mesh so the physical joint pivot (measured in the STL's original CAD frame) becomes the new local origin (subtract offset)
         mesh.apply_translation(-np.array(pivot_offset_mm, dtype=float))
         mesh.apply_scale(0.001)  # SolidWorks STL export is in mm - simulation units are metres
         return ps.register_surface_mesh(name, mesh.vertices, mesh.faces)
@@ -100,10 +100,10 @@ class VisContent:
     def load_data(self):
         """Register base and links, fix the base in place, and pose the arm at its zero-angle rest state"""
         # Offsets based on the way the parts were modelled in SolidWorks
-        self.ps_base = self.load_mesh("geometry/Base.STL", "Base", pivot_offset_mm=(378.75, 277.70, 378.75))
-        self.ps_link1 = self.load_mesh("geometry/Link 1.STL", "Link 1", pivot_offset_mm=(176.75, 176.75, 202.00))
-        self.ps_link2 = self.load_mesh("geometry/Link 2.STL", "Link 2", pivot_offset_mm=(176.75, 176.75, 126.25))
-        self.ps_link3 = self.load_mesh("geometry/Link 3.STL", "Link 3", pivot_offset_mm=(176.75, 176.75, 303.00))
+        self.ps_base = self.load_mesh("assets/geometry/Base.STL", "Base", pivot_offset_mm=(378.75, 277.70, 378.75))
+        self.ps_link1 = self.load_mesh("assets/geometry/Link 1.STL", "Link 1", pivot_offset_mm=(176.75, 176.75, 202.00))
+        self.ps_link2 = self.load_mesh("assets/geometry/Link 2.STL", "Link 2", pivot_offset_mm=(176.75, 176.75, 126.25))
+        self.ps_link3 = self.load_mesh("assets/geometry/Link 3.STL", "Link 3", pivot_offset_mm=(176.75, 176.75, 303.00))
 
         # Base is fixed and never transformed again
         self.ps_base.set_transform(BASE_TRANSLATION @ REMAP)
@@ -115,9 +115,18 @@ class VisContent:
         print("[Backend] Loading geometry...")
         
         
-    def run_algorithm(self, param_a, param_b):
-        """Inverse kinematics algorithm interface"""
-        print(f"[Backend] Running inverse kinmatics algorithm with params: x = {param_a}, z = {param_b}")
+    def run_algorithm(self, target_x, target_y, phi=0.0):
+        """Geometric inverse kinematics algorithm interface (Craig, Section 4.4)"""
+        result = solve_ik_angles(target_x, target_y, self.L1, self.L2, self.L3, phi)
+
+        if result is None:
+            print("[Backend] Target unreachable.")
+            return
+
+        theta1, theta2, theta3 = result
+        self.update_arm(theta1, theta2, theta3)
+
+        print(f"[Backend] Running inverse kinematics algorithm with params: x = {target_x}, z = {target_y} and phi = {phi}.")
         
 
 
@@ -164,3 +173,23 @@ REMAP = np.array([
     [0, 0,  0, 1],
 
 ])
+
+def solve_ik_angles(target_x, target_y, L1, L2, L3, phi = 0.0):
+        """
+        Geometric IK for the planar 3R arm (Craig, Section 4.4, eq. 4.29-4.34,
+        adapted to strip out L3's contribution to position before solving).
+        """
+        xw = target_x - L3 * np.cos(phi)
+        yw = target_y - L3 * np.sin(phi)
+
+        c2 = (xw**2 + yw**2 - L1**2 - L2**2) / (2 * L1 * L2)
+        if not -1.0 <= c2 <= 1.0:
+            return None # Unreachable position
+        
+        theta2 = np.arctan2(np.sqrt(1-c2**2), c2)
+        beta = np.arctan2(yw, xw)
+        psi = np.arctan2(L2 * np.sin(theta2), L1 + L2 * np.cos(theta2))
+        theta1 = beta - psi
+        theta3 = phi-theta1-theta2
+
+        return theta1, theta2, theta3

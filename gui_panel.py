@@ -20,6 +20,7 @@ class UI_Menu:
 
         # Target position for inverse kinematics
         self.target_position = np.array([5.0, 0.0])
+        self.target_phi_deg = 0.0
         
 
     def render(self):
@@ -54,8 +55,13 @@ class UI_Menu:
         # 4. Inverse kinematics section
         if psim.TreeNode("Inverse Kinematics"):
             changed, self.target_position = psim.InputFloat2("Target (X, Z)", self.target_position)
+            _, self.target_phi_deg = psim.SliderFloat("Tool Angle (deg)", self.target_phi_deg, -180, 180)
 
             if psim.Button("Solve IK"):
-                self.content.run_algorithm(self.target_position[0], self.target_position[1])
+                self.content.run_algorithm(
+                    self.target_position[0], 
+                    self.target_position[1],
+                    np.radians(self.target_phi_deg)
+                    )
 
             psim.TreePop()
