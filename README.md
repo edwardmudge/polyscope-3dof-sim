@@ -2,6 +2,8 @@
 
 A Python-based 3D visualisation tool for a 3-degree-of-freedom manipulator. The kinematic modelling conventions are based on Craig's "Introduction to Robotics: Mechanics and Control".
 
+![3DOF Polyscope Manipulator Demo](assets/manipulator_demo.gif)
+
 ## Dependencies
 
 * Python 3.12
